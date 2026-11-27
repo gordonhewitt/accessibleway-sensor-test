@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AccessibleWay 0.7.3.4 - Field Capture Research</title>
+<style>
+:root{font:16px/1.5 system-ui,"Segoe UI",sans-serif;color:#16324a;background:#f3f7fa}
+*{box-sizing:border-box}body{max-width:950px;margin:0 auto;padding:0 16px 36px}header{margin:0 -16px 18px;padding:20px 16px;color:white;background:#103856}h1{font-size:1.65rem;margin:.1rem 0 .4rem}h2{font-size:1.15rem;margin:0 0 10px}
+section{background:white;border:1px solid #c6d7e3;border-radius:9px;padding:17px;margin-bottom:14px}
+label{display:block;font-weight:600;margin:12px 0 5px}input,select,textarea,button{font:inherit}input,select,textarea{border:1px solid #7d9fb3;border-radius:6px;padding:9px;width:100%;max-width:100%}textarea{min-height:72px}button{background:#0c5886;border:2px solid #0c5886;color:white;border-radius:6px;padding:10px 12px;font-weight:650;cursor:pointer;margin:4px 4px 4px 0}button.secondary{background:white;color:#0c5886}button:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #cc7b10;outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}.callout{background:#fff5dc;border-left:4px solid #ae7000;padding:12px 15px;margin:12px 0}.status{background:#e8f3f9;border-left:4px solid #2d799f;padding:12px 15px;white-space:pre-line}.small{font-size:.9rem;color:#425f70}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.count{font-variant-numeric:tabular-nums;font-weight:bold;font-size:1.25rem}
+fieldset{border:0;padding:0;margin:0}fieldset:disabled{opacity:.85}footer{font-size:.85rem;color:#546878}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<p>AccessibleWay engineering research | version 0.7.3.4</p>
+<h1>Controlled sensor capture</h1>
+<p>Record locally, mark measured checkpoints, export JSON. No positioning or passenger navigation.</p>
+</header>
+<div class="callout" role="note"><strong>Research only.</strong> Use a safe, measured indoor test path with an observer if necessary. This page does not locate you or generate navigation guidance. Do not put personal data in the trial fields, and do not upload recordings to public GitHub.</div>
+<section>
+<h2>1. Label the trial before recording</h2>
+<fieldset id="metadata">
+<div class="grid">
+<div><label for="trialId">Anonymous trial ID</label><input id="trialId" maxlength="64" value="PILOT-01-S1" autocomplete="off" required></div>
+<div><label for="testType">Test type</label><select id="testType"><option value="stationary">Stationary</option><option value="straight" selected>Straight distance</option><option value="stop_go">Stop and go</option><option value="turn_left">Left turn</option><option value="turn_right">Right turn</option><option value="handling">Phone handling only, no travel</option><option value="other">Other controlled trial</option></select></div>
+<div><label for="movementMode">Movement mode</label><select id="movementMode"><option value="walking">Walking</option><option value="wheelchair_self">Wheelchair, self-propelled</option><option value="wheelchair_assisted">Wheelchair, assisted</option><option value="wheeled_other">Other wheeled movement</option><option value="unknown">Other / not recorded</option></select></div>
+<div><label for="phonePlacement">Phone placement</label><select id="phonePlacement"><option value="hand">Held in hand</option><option value="pocket">Pocket</option><option value="bag">Bag</option><option value="chair_mount">Wheelchair mount</option><option value="fixed_mount">Other fixed mount</option><option value="other">Other</option></select></div>
+<div><label for="distance">Independently measured total distance (metres)</label><input id="distance" type="number" min="0" max="10000" step="any" value="10"></div>
+<div><label for="environment">Environment (no location or address)</label><select id="environment"><option value="controlled_indoor">Controlled indoor test route</option><option value="controlled_outdoor">Controlled outdoor test route</option><option value="synthetic_only">Synthetic / structure test</option></select></div>
+</div>
+<label for="notes">Optional test notes (no names or precise location)</label><textarea id="notes" maxlength="500" placeholder="e.g., tape-measured 10m; phone held upright; supervised test"></textarea>
+</fieldset>
+</section>
+<section>
+<h2>2. Start a local sensor recording</h2>
+<p class="small">Motion and orientation availability depends on the device, browser and permission settings. Orientation angles are captured as raw research fields, not as calibrated compass headings. Keep this browser tab visible.</p>
+<div class="row"><button id="start">Start recording</button><button id="stop" class="secondary" disabled>Stop recording</button><span id="count" class="count" aria-label="Motion readings">0 readings</span></div>
+<div id="status" class="status" role="status" aria-live="polite">Ready. No sensor data has been recorded.</div>
+</section>
+<section>
+<h2>3. Mark independently known checkpoints</h2>
+<p>Tap a marker when the physical event happens. Marker timing is operator asserted; sensor data does not verify where the person was.</p>
+<div class="row"><button id="markStart" disabled>Mark START (0 m)</button><button id="markEnd" disabled>Mark END (known distance)</button></div>
+<div class="row"><button id="markLeft" class="secondary" disabled>Mark LEFT turn</button><button id="markRight" class="secondary" disabled>Mark RIGHT turn</button><button id="markStop" class="secondary" disabled>Mark STOP</button><button id="markResume" class="secondary" disabled>Mark RESUME</button></div>
+<div class="small" id="markers" aria-live="polite">No manual ground-truth markers yet.</div>
+</section>
+<section>
+<h2>4. Export locally for quality validation</h2>
+<p class="small">No data is uploaded by this page. Keep real trial files on your test device or private research storage. The export is deliberately different from the 0.7.3.3 illustrative route progress format.</p>
+<button id="download" disabled>Download recording JSON</button>
+<div id="exportStatus" class="small" role="status" aria-live="polite">Stop recording to enable download.</div>
+</section>
+<footer>AccessibleWay 0.7.3.4 capture research. Sample rate is observed, not guaranteed. Never use this experimental tool to make mobility or navigation decisions.</footer>
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+let active=false, startPerf=0, startedAtUtc='', events=[], markers=[], warnings=[], lastOrientation=null, stopReason='manual_stop', lastStatusUpdate=0, trialMetadata=null, downloaded=false;
+const markerButtons=['markStart','markEnd','markLeft','markRight','markStop','markResume'];
+const validNumber = n => typeof n==='number' && Number.isFinite(n);
+function vec(o, keys){return o && keys.every(k=>validNumber(o[k])) ? Object.fromEntries(keys.map(k=>[k,o[k]])) : null;}
+function nowMs(){return Math.round((performance.now()-startPerf)*1000)/1000;}
+function safeTrialId(){return $('trialId').value.trim();}
+function status(s){$('status').textContent=s;}
+function controls(){
+ $('start').disabled=active;$('stop').disabled=!active;$('download').disabled=active||!startedAtUtc;
+ $('metadata').disabled=active;
+ markerButtons.forEach(id=>$(id).disabled=!active);
+}
+function onMotion(ev){
+ if(!active)return;
+ if(events.length>=30000){stopCapture('event_limit');status('Stopped at 30,000 readings. Please use shorter trials.');return;}
+ const t=nowMs();
+ const age=lastOrientation ? t-lastOrientation.tMs : Infinity;
+ events.push({kind:'motion',tMs:t,accelerationIncludingGravity:vec(ev.accelerationIncludingGravity,['x','y','z']),
+  acceleration:vec(ev.acceleration,['x','y','z']),rotationRate:vec(ev.rotationRate,['alpha','beta','gamma']),
+  orientation:age>=0&&age<=1500?lastOrientation.values:null,
+  browserIntervalMs:validNumber(ev.interval)?ev.interval:null});
+ if(t-lastStatusUpdate>650){lastStatusUpdate=t;$('count').textContent=events.length+' readings';status('Recording active. '+events.length+' motion readings. '+markers.length+' ground-truth markers.');}
+}
+function onOrientation(ev){
+ if(!active)return;
+ const values=vec(ev,['alpha','beta','gamma']);
+ lastOrientation={tMs:nowMs(),values:values?{...values,absolute:ev.absolute===true}:null};
+}
+function stopCapture(reason){
+ if(!active)return;
+ active=false;stopReason=reason;window.removeEventListener('devicemotion',onMotion);window.removeEventListener('deviceorientation',onOrientation);
+ const duration=nowMs();
+ window.__aw0734DurationMs=duration;
+ $('count').textContent=events.length+' readings';
+ status('Stopped: '+reason+'. '+events.length+' motion readings over '+(duration/1000).toFixed(2)+' seconds. Review markers and download JSON. This recording is not a position trace.');
+ controls();
+}
+async function requestPermissions(){
+ const requirements=[['motion',window.DeviceMotionEvent],['orientation',window.DeviceOrientationEvent]];
+ const responses=[];
+ for(const [name, ctor] of requirements){
+  if(ctor && typeof ctor.requestPermission==='function'){
+   try{const result=await ctor.requestPermission();responses.push(name+': '+result);
+    if(result!=='granted' && name==='motion')throw Error('Motion permission not granted.');}
+   catch(err){if(name==='motion')throw err;responses.push('orientation: unavailable');}
+  }
+ }
+ return responses.join(', ')||'Permissions handled by browser settings';
+}
+function captureMetadata(){return {trialId:safeTrialId(),testType:$('testType').value,movementMode:$('movementMode').value,phonePlacement:$('phonePlacement').value,knownDistanceMetres:Number($('distance').value),environment:$('environment').value,notes:$('notes').value.trim()};}
+function validateForm(){
+ const id=safeTrialId();
+ if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{2,63}$/.test(id))throw Error('Trial ID must be 3-64 letters/digits/underscores/hyphens; no personal names.');
+ const distance=Number($('distance').value);
+ if(!validNumber(distance)||distance<0||distance>10000)throw Error('Enter an independently measured distance in metres.');
+ const type=$('testType').value;
+ if((type==='stationary'||type==='handling')&&distance!==0)throw Error('A stationary or phone-handling-only trial must have zero distance.');
+ if(type!=='stationary'&&type!=='handling'&&distance<=0)throw Error('Movement tests require a positive independently measured distance.');
+}
+$('start').addEventListener('click',async()=>{
+ try{
+  validateForm();
+  if(startedAtUtc && events.length && !downloaded && !window.confirm('The previous recording has not been downloaded. Discard it and start a new trial?'))return;
+  if(!('DeviceMotionEvent' in window))throw Error('Device motion events are not supported in this browser. Try a compatible smartphone over HTTPS.');
+  if(!window.isSecureContext)throw Error('Secure HTTPS connection is required for motion sensors.');
+  const permissionStatus=await requestPermissions();
+  trialMetadata=captureMetadata();
+  active=true;downloaded=false;events=[];markers=[];warnings=[];lastOrientation=null;startPerf=performance.now();lastStatusUpdate=0;
+  startedAtUtc=new Date().toISOString();stopReason='manual_stop';window.__aw0734DurationMs=0;
+  window.addEventListener('devicemotion',onMotion);window.addEventListener('deviceorientation',onOrientation);
+  $('count').textContent='0 readings';$('markers').textContent='No ground-truth markers yet.';$('exportStatus').textContent='Recording in progress.';
+  status('Recording. '+permissionStatus+'. Waiting for motion readings; do not lock the screen.');controls();
+ }catch(e){status('Capture did not start: '+e.message);}
+});
+$('stop').addEventListener('click',()=>stopCapture('manual_stop'));
+function mark(label,distance){
+ if(!active)return;
+ const t=nowMs();markers.push({tMs:t,label,knownDistanceMetres:distance});
+ $('markers').textContent=markers.map(x=>x.label+' @ '+(x.tMs/1000).toFixed(2)+' s').join(' | ');
+}
+$('markStart').addEventListener('click',()=>mark('START',0));
+$('markEnd').addEventListener('click',()=>mark('END',Number($('distance').value)));
+$('markLeft').addEventListener('click',()=>mark('LEFT',null));
+$('markRight').addEventListener('click',()=>mark('RIGHT',null));
+$('markStop').addEventListener('click',()=>mark('STOP',null));
+$('markResume').addEventListener('click',()=>mark('RESUME',null));
+document.addEventListener('visibilitychange',()=>{if(active && document.hidden){warnings.push({tMs:nowMs(),reason:'page_hidden'});stopCapture('page_hidden');}});
+$('download').addEventListener('click',()=>{
+ if(active||!startedAtUtc)return;
+ const duration=window.__aw0734DurationMs||0;
+ const payload={format:'AccessibleWay-calibration-capture-0.7.3.4',version:'0.7.3.4',source:'real_device',
+  metadata:trialMetadata,
+  recording:{startedAtUtc,durationMs:duration,stopReason,events,markers,visibilityWarnings:warnings}};
+ const data=JSON.stringify(payload,null,2);
+ const blob=new Blob([data],{type:'application/json'});
+ const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
+ a.download='AW0734_'+trialMetadata.trialId+'.json';document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+ downloaded=true;$('exportStatus').textContent='JSON download requested: '+a.download+'. Review the file locally and run the 0.7.3.4 validator. This is NOT evidence of position.';
+});
+controls();
+})();
+</script>
+</body>
+</html>
